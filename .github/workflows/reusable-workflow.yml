@@ -14,11 +14,11 @@ on:
       PROD_AWS_BUCKET_NAME:
         required: false
       DEV_AWS_BUCKET_NAME:
-        required: true
+        required: false
       PROD_AWS_BUCKET_KEY_NAME:
         required: false
       DEV_AWS_BUCKET_KEY_NAME:
-        required: true
+        required: false
       AWS_REGION:
         required: true
 
