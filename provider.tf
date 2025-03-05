@@ -9,3 +9,6 @@ assume_role {
 }
 */
 
+provider "aws" {
+  region = "us-east-1"
+}
