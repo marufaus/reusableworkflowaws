@@ -1,4 +1,4 @@
-name: reusable workflow
+name: Reusable Workflow
 
 on:
   workflow_call:
@@ -14,24 +14,24 @@ on:
 
 jobs:
   deploy:
-    name: deploy
+    name: Deploy with Terraform
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [14.x]
     steps:
       - uses: actions/checkout@v2
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
-        with:
-          node-version: ${{ matrix.node-version }}
-      - run: npm ci
-      - run: npm run test
-        if: ${{ inputs.stage == 'prod' }}
-      - name: serverless deploy
-        uses: serverless/github-action@v3
-        with:
-          args: deploy --stage ${{ inputs.stage }}
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Initialize Terraform
+        run: |
+          cd terraform
+          terraform init
+
+      - name: Apply Terraform Configuration
+        run: |
+          cd terraform
+          terraform apply -auto-approve -var="stage=${{ inputs.stage }}"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
