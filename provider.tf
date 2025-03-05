@@ -9,7 +9,3 @@ assume_role {
 }
 */
 
-provider "aws" {
-  region = var.aws_region
-}
-
