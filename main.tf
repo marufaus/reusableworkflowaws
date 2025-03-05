@@ -5,7 +5,7 @@ resource "aws_ssm_parameter" "foo" {
 }
 
 resource "aws_ssm_parameter" "family" {
-  name  = "/myapp/${var.stage}/config"
+  name  = "/myapp1/${var.stage}/config"
   type  = "String"
   value = "maruf"
 }
