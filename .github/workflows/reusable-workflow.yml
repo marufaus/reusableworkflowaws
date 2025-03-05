@@ -11,27 +11,56 @@ on:
         required: true
       AWS_SECRET_ACCESS_KEY:
         required: true
+      PROD_AWS_BUCKET_NAME:
+        required: false
+      DEV_AWS_BUCKET_NAME:
+        required: true
+      PROD_AWS_BUCKET_KEY_NAME:
+        required: false
+      DEV_AWS_BUCKET_KEY_NAME:
+        required: true
+      AWS_REGION:
+        required: true
 
 jobs:
   deploy:
-    name: deploy
+    name: Deploy with Terraform
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [14.x]
     steps:
       - uses: actions/checkout@v2
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
-        with:
-          node-version: ${{ matrix.node-version }}
-      - run: npm ci
-      - run: npm run test
-        if: ${{ inputs.stage == 'prod' }}
-      - name: serverless deploy
-        uses: serverless/github-action@v3
-        with:
-          args: deploy --stage ${{ inputs.stage }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Determine S3 Bucket and Key
+        run: |
+          if [ "${{ inputs.stage }}" == "prod" ]; then
+            echo "S3_BUCKET=${{ secrets.PROD_AWS_BUCKET_NAME }}" >> $GITHUB_ENV
+            echo "S3_BUCKET_KEY=${{ secrets.PROD_AWS_BUCKET_KEY_NAME }}" >> $GITHUB_ENV
+          else
+            echo "S3_BUCKET=${{ secrets.DEV_AWS_BUCKET_NAME }}" >> $GITHUB_ENV
+            echo "S3_BUCKET_KEY=${{ secrets.DEV_AWS_BUCKET_KEY_NAME }}" >> $GITHUB_ENV
+          fi
+
+      - name: Initialize Terraform
+        run: |
+          terraform init -backend-config="bucket=$S3_BUCKET" -backend-config="key=$S3_BUCKET_KEY"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+
+      - name: Run Terraform Plan
+        run: terraform plan -var="stage=${{ inputs.stage }}" -var="s3_bucket=$S3_BUCKET" -var="s3_bucket_key=$S3_BUCKET_KEY"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+
+      - name: Apply Terraform Configuration
+        run: |
+          terraform apply -auto-approve -var="stage=${{ inputs.stage }}" -var="s3_bucket=$S3_BUCKET" -var="s3_bucket_key=$S3_BUCKET_KEY"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
