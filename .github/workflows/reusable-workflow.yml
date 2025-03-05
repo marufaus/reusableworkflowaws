@@ -1,4 +1,4 @@
-name: Reusable Workflow
+name: reusable workflow
 
 on:
   workflow_call:
@@ -11,6 +11,16 @@ on:
         required: true
       AWS_SECRET_ACCESS_KEY:
         required: true
+      PROD_AWS_BUCKET_NAME:
+        required: true
+      DEV_AWS_BUCKET_NAME:
+        required: true
+      PROD_AWS_BUCKET_KEY_NAME:
+        required: true
+      DEV_AWS_BUCKET_KEY_NAME:
+        required: true
+      AWS_REGION:
+        required: true
 
 jobs:
   deploy:
@@ -18,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
@@ -31,16 +41,21 @@ jobs:
             echo "S3_BUCKET=${{ secrets.DEV_AWS_BUCKET_NAME }}" >> $GITHUB_ENV
             echo "S3_BUCKET_KEY=${{ secrets.DEV_AWS_BUCKET_KEY_NAME }}" >> $GITHUB_ENV
           fi
-          
+
       - name: Initialize Terraform
         run: |
+          cd terraform
           terraform init -backend-config="bucket=$S3_BUCKET" -backend-config="key=$S3_BUCKET_KEY"
-
-
-      - name: Apply Terraform Configuration
-        run: |
-          terraform apply -auto-approve -var="stage=${{ inputs.stage }}"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
 
+      - name: Apply Terraform Configuration
+        run: |
+          cd terraform
+          terraform apply -auto-approve -var="stage=${{ inputs.stage }}" -var="s3_bucket=$S3_BUCKET" -var="s3_bucket_key=$S3_BUCKET_KEY"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
