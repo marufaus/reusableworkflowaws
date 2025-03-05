@@ -11,14 +11,6 @@ on:
         required: true
       AWS_SECRET_ACCESS_KEY:
         required: true
-      PROD_AWS_BUCKET_NAME:
-        required: true
-      DEV_AWS_BUCKET_NAME:
-        required: true
-      PROD_AWS_BUCKET_KEY_NAME:
-        required: true
-      DEV_AWS_BUCKET_KEY_NAME:
-        required: true
       AWS_REGION:
         required: true
 
