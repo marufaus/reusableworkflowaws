@@ -1,4 +1,4 @@
-name: reusable workflow
+name: Reusable Workflow
 
 on:
   workflow_call:
@@ -8,9 +8,17 @@ on:
         type: string
     secrets:
       AWS_ACCESS_KEY_ID:
-        required: true
+        required: false
       AWS_SECRET_ACCESS_KEY:
-        required: true
+        required: false
+      AWS_REGION:
+        required: false
+      AWS_ORG_MASTER_ACCOUNT_ID:
+        required: false
+      AWS_ORG_ACCESS_ROLE:
+        required: false
+      AWS_DEPLOY_ROLE_NAME:
+        required: false
       PROD_AWS_BUCKET_NAME:
         required: false
       DEV_AWS_BUCKET_NAME:
@@ -19,8 +27,6 @@ on:
         required: false
       DEV_AWS_BUCKET_KEY_NAME:
         required: false
-      AWS_REGION:
-        required: true
 
 jobs:
   deploy:
@@ -32,7 +38,16 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
-      - name: Determine S3 Bucket and Key
+      - name: Determine Deployment Mode
+        run: |
+          if [ "${{ inputs.stage }}" == "all-accounts" ]; then
+            echo "DEPLOY_MODE=all-accounts" >> $GITHUB_ENV
+          else
+            echo "DEPLOY_MODE=${{ inputs.stage }}" >> $GITHUB_ENV
+          fi
+
+      - name: Determine S3 Bucket and Key (Dev/Prod)
+        if: env.DEPLOY_MODE != 'all-accounts'
         run: |
           if [ "${{ inputs.stage }}" == "prod" ]; then
             echo "S3_BUCKET=${{ secrets.PROD_AWS_BUCKET_NAME }}" >> $GITHUB_ENV
@@ -44,23 +59,46 @@ jobs:
 
       - name: Initialize Terraform
         run: |
-          terraform init -backend-config="bucket=$S3_BUCKET" -backend-config="key=$S3_BUCKET_KEY"
+          if [ "$DEPLOY_MODE" == "all-accounts" ]; then
+            terraform init
+          else
+            terraform init -backend-config="bucket=$S3_BUCKET" -backend-config="key=$S3_BUCKET_KEY"
+          fi
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
 
-      - name: Run Terraform Plan
-        run: terraform plan -var="stage=${{ inputs.stage }}" -var="s3_bucket=$S3_BUCKET" -var="s3_bucket_key=$S3_BUCKET_KEY"
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-
-      - name: Apply Terraform Configuration
+      # ✅ Deploy to Dev or Prod
+      - name: Terraform Apply (Dev/Prod)
+        if: env.DEPLOY_MODE != 'all-accounts'
         run: |
           terraform apply -auto-approve -var="stage=${{ inputs.stage }}" -var="s3_bucket=$S3_BUCKET" -var="s3_bucket_key=$S3_BUCKET_KEY"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+
+      # ✅ Deploy to ALL AWS Accounts
+      - name: Get All AWS Accounts
+        if: env.DEPLOY_MODE == 'all-accounts'
+        run: |
+          ACCOUNT_IDS=$(aws organizations list-accounts --query "Accounts[*].Id" --output json | jq -r '.[]')
+          echo "ACCOUNT_IDS=$ACCOUNT_IDS" >> $GITHUB_ENV
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+
+      - name: Assume Role and Deploy to Each Account
+        if: env.DEPLOY_MODE == 'all-accounts'
+        run: |
+          for ACCOUNT_ID in $ACCOUNT_IDS; do
+            echo "Deploying to Account: $ACCOUNT_ID"
+            export TEMP_ROLE=$(aws sts assume-role --role-arn "arn:aws:iam::$ACCOUNT_ID:role/${{ secrets.AWS_DEPLOY_ROLE_NAME }}" --role-session-name GitHubDeployment)
+            export AWS_ACCESS_KEY_ID=$(echo $TEMP_ROLE | jq -r '.Credentials.AccessKeyId')
+            export AWS_SECRET_ACCESS_KEY=$(echo $TEMP_ROLE | jq -r '.Credentials.SecretAccessKey')
+            export AWS_SESSION_TOKEN=$(echo $TEMP_ROLE | jq -r '.Credentials.SessionToken')
+
+            terraform apply -auto-approve -var="aws_account_id=$ACCOUNT_ID"
+          done
+        env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
