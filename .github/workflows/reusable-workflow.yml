@@ -27,6 +27,10 @@ on:
         required: false
       DEV_AWS_BUCKET_KEY_NAME:
         required: false
+      ALL_ACC_AWS_BUCKET_KEY_NAME:
+        required: false
+      ALL_ACC_AWS_BUCKET_NAME:
+        required: false
 
 jobs:
   deploy:
