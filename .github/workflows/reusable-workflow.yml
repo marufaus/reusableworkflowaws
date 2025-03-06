@@ -70,9 +70,9 @@ jobs:
       - name: Initialize Terraform
         run: |
           if [ "$DEPLOY_MODE" == "all-accounts" ]; then
-            terraform init
-          else
             terraform init -backend-config="bucket=$S3_BUCKET" -backend-config="key=$S3_BUCKET_KEY"
+          else
+            exit 1
           fi
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
