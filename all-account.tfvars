@@ -2,5 +2,5 @@
 
 stage = "all-accounts"
 
-s3_bucket = "organization-wide-bucket-name"
-s3_bucket_key = "terraform/state/all-accounts.tfstate"
+s3_bucket = "stagingcloudqucikpocstestingbucket123"
+s3_bucket_key = "all-accounts.tfstate"
