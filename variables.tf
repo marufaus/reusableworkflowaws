@@ -13,4 +13,9 @@ variable "s3_bucket_key" {
   type        = string
 }
 
+variable "aws_account_id" {
+  description = "AWS Account ID for all-accounts deployment"
+  type        = string
+  default     = ""
+}
 
