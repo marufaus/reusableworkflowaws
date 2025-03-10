@@ -15,8 +15,6 @@ on:
         required: false
       AWS_ORG_MASTER_ACCOUNT_ID:
         required: false
-      AWS_ORG_ACCESS_ROLE:
-        required: false
       AWS_DEPLOY_ROLE_NAME:
         required: false
       PROD_AWS_BUCKET_NAME:
@@ -30,8 +28,6 @@ on:
       ALL_ACC_AWS_BUCKET_KEY_NAME:
         required: false
       ALL_ACC_AWS_BUCKET_NAME:
-        required: false
-      AWS_DEPLOY_ROLE_NAME:
         required: false
 
 jobs:
