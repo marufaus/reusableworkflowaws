@@ -31,6 +31,8 @@ on:
         required: false
       ALL_ACC_AWS_BUCKET_NAME:
         required: false
+      AWS_DEPLOY_ROLE_NAME:
+        required: false
 
 jobs:
   deploy:
