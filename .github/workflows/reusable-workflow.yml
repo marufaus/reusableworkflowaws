@@ -79,7 +79,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
 
-      # ✅ Deploy to Dev or Prod
+      # Deploy to Dev or Prod
       - name: Terraform Apply (Dev/Prod)
         if: env.DEPLOY_MODE != 'all-accounts'
         run: |
@@ -89,7 +89,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
 
-      # ✅ Deploy to ALL AWS Accounts
+      # Deploy to ALL AWS Accounts
       - name: Get All AWS Accounts
         if: env.DEPLOY_MODE == 'all-accounts'
         run: |
