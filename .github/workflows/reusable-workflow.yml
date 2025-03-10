@@ -131,7 +131,7 @@ jobs:
           fi
 
           # Run terraform apply for the account
-          terraform apply -auto-approve -var="aws_account_id=$ACCOUNT_ID"
+          terraform plan -var="aws_account_id=$ACCOUNT_ID" -var="s3_bucket=$S3_BUCKET" -var="s3_bucket_key=$S3_BUCKET_KEY"
           done
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
