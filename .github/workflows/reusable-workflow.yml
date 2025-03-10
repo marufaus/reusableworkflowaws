@@ -104,18 +104,32 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
 
-
       - name: Assume Role and Deploy to Each Account
         if: env.DEPLOY_MODE == 'all-accounts'
         run: |
-          for ACCOUNT_ID in $ACCOUNT_IDS; do
+          IFS=',' read -ra ACCOUNTS <<< "${{ env.ACCOUNT_IDS }}"
+          for ACCOUNT_ID in "${ACCOUNTS[@]}"; do
             echo "Deploying to Account: $ACCOUNT_ID"
-            export TEMP_ROLE=$(aws sts assume-role --role-arn "arn:aws:iam::$ACCOUNT_ID:role/${{ secrets.AWS_DEPLOY_ROLE_NAME }}" --role-session-name GitHubDeployment)
-            export AWS_ACCESS_KEY_ID=$(echo $TEMP_ROLE | jq -r '.Credentials.AccessKeyId')
-            export AWS_SECRET_ACCESS_KEY=$(echo $TEMP_ROLE | jq -r '.Credentials.SecretAccessKey')
-            export AWS_SESSION_TOKEN=$(echo $TEMP_ROLE | jq -r '.Credentials.SessionToken')
 
-            terraform apply -auto-approve -var="aws_account_id=$ACCOUNT_ID"
+          # Assume the role in the target account
+          TEMP_ROLE=$(aws sts assume-role --role-arn "arn:aws:iam::$ACCOUNT_ID:role/${{ secrets.AWS_DEPLOY_ROLE_NAME }}" --role-session-name GitHubDeployment)
+
+          # Extract the temporary credentials from the assumed role
+          export AWS_ACCESS_KEY_ID=$(echo $TEMP_ROLE | jq -r '.Credentials.AccessKeyId')
+          export AWS_SECRET_ACCESS_KEY=$(echo $TEMP_ROLE | jq -r '.Credentials.SecretAccessKey')
+          export AWS_SESSION_TOKEN=$(echo $TEMP_ROLE | jq -r '.Credentials.SessionToken')
+
+          # Ensure the credentials are set correctly
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_SESSION_TOKEN" ]; then
+            echo "Failed to assume role for account $ACCOUNT_ID. Skipping deployment."
+          continue
+          fi
+
+          # Run terraform apply for the account
+          terraform apply -auto-approve -var="aws_account_id=$ACCOUNT_ID"
           done
-        env:
-          AWS_REGION: ${{ secrets.AWS_REGION }}
+       env:
+         AWS_REGION: ${{ secrets.AWS_REGION }}
+         AWS_ACCESS_KEY_ID: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
+         AWS_SECRET_ACCESS_KEY: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
+
