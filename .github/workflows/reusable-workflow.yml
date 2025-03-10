@@ -90,15 +90,20 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
 
       # Deploy to ALL AWS Accounts
-      - name: Get All AWS Accounts
+      - name: Get AWS Account IDs
         if: env.DEPLOY_MODE == 'all-accounts'
         run: |
-          ACCOUNT_IDS=$(aws organizations list-accounts --query "Accounts[*].Id" --output json | jq -r '.[]')
+          ACCOUNT_IDS=$(aws organizations list-accounts --query "Accounts[*].Id" --output json | jq -r '.[]' | tr '\n' ',')
+    
+          # Remove the last comma if present
+          ACCOUNT_IDS=${ACCOUNT_IDS%,}
+    
           echo "ACCOUNT_IDS=$ACCOUNT_IDS" >> $GITHUB_ENV
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
+
 
       - name: Assume Role and Deploy to Each Account
         if: env.DEPLOY_MODE == 'all-accounts'
