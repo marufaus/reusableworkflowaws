@@ -15,3 +15,9 @@ resource "aws_ssm_parameter" "family1" {
   type  = "String"
   value = "member"
 }
+
+resource "aws_ssm_parameter" "family3" {
+  name  = "/myapp3/${var.stage}/config"
+  type  = "String"
+  value = "member3"
+}
