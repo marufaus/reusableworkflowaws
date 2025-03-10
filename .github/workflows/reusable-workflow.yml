@@ -128,8 +128,7 @@ jobs:
           # Run terraform apply for the account
           terraform apply -auto-approve -var="aws_account_id=$ACCOUNT_ID"
           done
-       env:
-         AWS_REGION: ${{ secrets.AWS_REGION }}
-         AWS_ACCESS_KEY_ID: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
-         AWS_SECRET_ACCESS_KEY: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
-
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
