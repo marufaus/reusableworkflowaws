@@ -16,3 +16,4 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       ALL_ACC_AWS_BUCKET_KEY_NAME: ${{ secrets.ALL_ACC_AWS_BUCKET_KEY_NAME }}
       ALL_ACC_AWS_BUCKET_NAME: ${{ secrets.ALL_ACC_AWS_BUCKET_NAME }}
+      AWS_DEPLOY_ROLE_NAME: ${{ secrets.AWS_DEPLOY_ROLE_NAME }}
