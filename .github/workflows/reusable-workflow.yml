@@ -31,6 +31,8 @@ on:
         required: false
       ALL_ACC_AWS_BUCKET_NAME:
         required: false
+      AWS_DEPLOY_ROLE_NAME:
+        required: false
 
 jobs:
   deploy:
@@ -119,7 +121,7 @@ jobs:
           fi
 
           # Assume the role in the target member account
-          TEMP_ROLE=$(aws sts assume-role --role-arn "arn:aws:iam::$ACCOUNT_ID:role/${{ secrets.AWS_DEPLOY_ROLE_NAME }}" --role-session-name GitHubDeployment)
+          TEMP_ROLE=$(aws sts assume-role --role-arn "arn:aws:iam::$ACCOUNT_ID:role/${{ secrets.AWS_DEPLOY_ROLE_NAME }}" --role-session-name GitHubDeployment --duration-seconds 3600)
 
           # Extract the temporary credentials from the assumed role
           export AWS_ACCESS_KEY_ID=$(echo $TEMP_ROLE | jq -r '.Credentials.AccessKeyId')
@@ -137,6 +139,6 @@ jobs:
           done
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
