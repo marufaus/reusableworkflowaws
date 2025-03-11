@@ -130,6 +130,9 @@ jobs:
               continue
           fi
 
+          #AWS caller identity check
+          aws sts get-caller-identity
+          
           # Run terraform apply for the account
           terraform plan -var="aws_account_id=$ACCOUNT_ID" -var="s3_bucket=$S3_BUCKET" -var="s3_bucket_key=$S3_BUCKET_KEY"
           done
