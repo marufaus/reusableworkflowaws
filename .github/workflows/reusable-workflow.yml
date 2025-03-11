@@ -39,10 +39,9 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
-      
+
       - name: List project files
         run: ls -l ${{ github.workspace }}
-
 
       - name: Determine Deployment Mode
         run: |
@@ -53,7 +52,6 @@ jobs:
           fi
 
       - name: Determine S3 Bucket and Key (Dev/Prod)
-        #if: env.DEPLOY_MODE != 'all-accounts'
         run: |
           if [ "${{ inputs.stage }}" == "all-accounts" ]; then
             echo "DEPLOY_MODE=all-accounts" >> $GITHUB_ENV
@@ -91,62 +89,74 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
 
-      # Deploy to ALL AWS Accounts
+      # Get AWS Account IDs
       - name: Get AWS Account IDs
         if: env.DEPLOY_MODE == 'all-accounts'
         run: |
           ACCOUNT_IDS=$(aws organizations list-accounts --query "Accounts[*].Id" --output json | jq -r '.[]' | tr '\n' ',')
-    
-          # Remove the last comma if present
           ACCOUNT_IDS=${ACCOUNT_IDS%,}
-    
           echo "ACCOUNT_IDS=$ACCOUNT_IDS" >> $GITHUB_ENV
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          
+
       # Deploy to ALL AWS Accounts
       - name: Assume Role and Deploy to Each Account
         if: env.DEPLOY_MODE == 'all-accounts'
         run: |
+          # Step 1: Always authenticate using the management account (992092700795)
+          echo "Assuming role in the management account (992092700795)"
+          
+          # Assume the role in the management account
+          TEMP_ROLE_MANAGEMENT_ACCOUNT=$(aws sts assume-role --role-arn "arn:aws:iam::992092700795:role/${{ secrets.AWS_DEPLOY_ROLE_NAME }}" --role-session-name GitHubDeployment --duration-seconds 3600)
+
+          # Extract the temporary credentials from the assumed role in the management account
+          export AWS_ACCESS_KEY_ID=$(echo $TEMP_ROLE_MANAGEMENT_ACCOUNT | jq -r '.Credentials.AccessKeyId')
+          export AWS_SECRET_ACCESS_KEY=$(echo $TEMP_ROLE_MANAGEMENT_ACCOUNT | jq -r '.Credentials.SecretAccessKey')
+          export AWS_SESSION_TOKEN=$(echo $TEMP_ROLE_MANAGEMENT_ACCOUNT | jq -r '.Credentials.SessionToken')
+
+          # Ensure the credentials are set correctly for the management account
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_SESSION_TOKEN" ]; then
+              echo "Failed to assume role for the management account. Exiting."
+              exit 1
+          fi
+
+          # Step 2: Now assume roles in other accounts
           IFS=',' read -ra ACCOUNTS <<< "${{ env.ACCOUNT_IDS }}"
           for ACCOUNT_ID in "${ACCOUNTS[@]}"; do
-            echo "Deploying to Account: $ACCOUNT_ID"
+              echo "Deploying to Account: $ACCOUNT_ID"
 
-          # Skip the management account (992092700795) since the OrganizationAccountAccessRole won't exist there
-          if [ "$ACCOUNT_ID" == "992092700795" ]; then
-            echo "Skipping management account $ACCOUNT_ID"
-            continue
-          fi
-          
-          #AWS caller identity check
-          aws sts get-caller-identity
+              # Skip the management account (992092700795) since we already authenticated there
+              if [ "$ACCOUNT_ID" == "992092700795" ]; then
+                  echo "Skipping management account $ACCOUNT_ID"
+                  continue
+              fi
 
-          # Assume the role in the target member account
-          TEMP_ROLE=$(aws sts assume-role --role-arn "arn:aws:iam::$ACCOUNT_ID:role/${{ secrets.AWS_DEPLOY_ROLE_NAME }}" --role-session-name GitHubDeployment --duration-seconds 3600)
+              # Assume the role in the target account
+              TEMP_ROLE=$(aws sts assume-role --role-arn "arn:aws:iam::$ACCOUNT_ID:role/${{ secrets.AWS_DEPLOY_ROLE_NAME }}" --role-session-name GitHubDeployment --duration-seconds 3600)
 
-          # Extract the temporary credentials from the assumed role
-          export AWS_ACCESS_KEY_ID=$(echo $TEMP_ROLE | jq -r '.Credentials.AccessKeyId')
-          export AWS_SECRET_ACCESS_KEY=$(echo $TEMP_ROLE | jq -r '.Credentials.SecretAccessKey')
-          export AWS_SESSION_TOKEN=$(echo $TEMP_ROLE | jq -r '.Credentials.SessionToken')
+              # Extract the temporary credentials from the assumed role in the target account
+              export AWS_ACCESS_KEY_ID=$(echo $TEMP_ROLE | jq -r '.Credentials.AccessKeyId')
+              export AWS_SECRET_ACCESS_KEY=$(echo $TEMP_ROLE | jq -r '.Credentials.SecretAccessKey')
+              export AWS_SESSION_TOKEN=$(echo $TEMP_ROLE | jq -r '.Credentials.SessionToken')
 
-          # Ensure the credentials are set correctly
-          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_SESSION_TOKEN" ]; then
-              echo "Failed to assume role for account $ACCOUNT_ID. Skipping deployment."
-              continue
-          fi
+              # Ensure the credentials are set correctly
+              if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_SESSION_TOKEN" ]; then
+                  echo "Failed to assume role for account $ACCOUNT_ID. Skipping deployment."
+                  continue
+              fi
 
-          #AWS caller identity check
-          aws sts get-caller-identity
+              # AWS caller identity check for the target account
+              aws sts get-caller-identity
 
-          cd ${{ github.workspace }}
-          ls -l ${{ github.workspace }}
-          
-          # Run terraform apply for the account
-          #terraform plan -var="aws_account_id=$ACCOUNT_ID" -var="s3_bucket=$S3_BUCKET" -var="s3_bucket_key=$S3_BUCKET_KEY"
-          terraform plan -var-file="${{ github.workspace }}/all-account.tfvars"
+              cd ${{ github.workspace }}
+              ls -l ${{ github.workspace }}
+
+              # Run terraform plan for the account
+              terraform plan -var-file="${{ github.workspace }}/all-account.tfvars"
           done
+
         continue-on-error: true
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
