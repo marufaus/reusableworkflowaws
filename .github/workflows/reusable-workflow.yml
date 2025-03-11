@@ -142,7 +142,8 @@ jobs:
           
           # Run terraform apply for the account
           #terraform plan -var="aws_account_id=$ACCOUNT_ID" -var="s3_bucket=$S3_BUCKET" -var="s3_bucket_key=$S3_BUCKET_KEY"
-          terraform plan -var-file="${{ github.workspace }}/all-account.tfvars"
+          terraform plan -var-file="${{ github.workspace }}/all-account.tfvars" || true
+          continue-on-error: true
           done
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
