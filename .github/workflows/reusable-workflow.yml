@@ -119,6 +119,9 @@ jobs:
             echo "Skipping management account $ACCOUNT_ID"
             continue
           fi
+          
+          #AWS caller identity check
+          aws sts get-caller-identity
 
           # Assume the role in the target member account
           TEMP_ROLE=$(aws sts assume-role --role-arn "arn:aws:iam::$ACCOUNT_ID:role/${{ secrets.AWS_DEPLOY_ROLE_NAME }}" --role-session-name GitHubDeployment --duration-seconds 3600)
@@ -135,7 +138,7 @@ jobs:
           fi
 
           #AWS caller identity check
-          #aws sts get-caller-identity
+          aws sts get-caller-identity
 
           cd ${{ github.workspace }}
           ls -l ${{ github.workspace }}
