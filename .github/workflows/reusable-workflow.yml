@@ -39,6 +39,10 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
+      
+      - name: List project files
+        run: ls -l ${{ github.workspace }}
+
 
       - name: Determine Deployment Mode
         run: |
@@ -132,6 +136,9 @@ jobs:
 
           #AWS caller identity check
           #aws sts get-caller-identity
+
+          cd ${{ github.workspace }}
+          ls -l ${{ github.workspace }}
           
           # Run terraform apply for the account
           #terraform plan -var="aws_account_id=$ACCOUNT_ID" -var="s3_bucket=$S3_BUCKET" -var="s3_bucket_key=$S3_BUCKET_KEY"
