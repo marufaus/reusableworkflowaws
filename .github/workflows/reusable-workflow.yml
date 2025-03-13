@@ -133,6 +133,20 @@ jobs:
                   continue
               fi
 
+              # Assume the role in the management account
+              TEMP_ROLE_MANAGEMENT_ACCOUNT=$(aws sts assume-role --role-arn "arn:aws:iam::992092700795:role/${{ secrets.AWS_DEPLOY_ROLE_NAME }}" --role-session-name GitHubDeployment --duration-seconds 3600)
+
+              # Extract the temporary credentials from the assumed role in the management account
+                export AWS_ACCESS_KEY_ID=$(echo $TEMP_ROLE_MANAGEMENT_ACCOUNT | jq -r '.Credentials.AccessKeyId')
+                export AWS_SECRET_ACCESS_KEY=$(echo $TEMP_ROLE_MANAGEMENT_ACCOUNT | jq -r '.Credentials.SecretAccessKey')
+                export AWS_SESSION_TOKEN=$(echo $TEMP_ROLE_MANAGEMENT_ACCOUNT | jq -r '.Credentials.SessionToken')
+
+              # Ensure the credentials are set correctly for the management account
+              if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_SESSION_TOKEN" ]; then
+                echo "Failed to assume role for the management account. Exiting."
+                exit 1
+              fi
+
               # Assume the role in the target account
               TEMP_ROLE=$(aws sts assume-role --role-arn "arn:aws:iam::$ACCOUNT_ID:role/${{ secrets.AWS_DEPLOY_ROLE_NAME }}" --role-session-name GitHubDeployment --duration-seconds 3600)
 
