@@ -93,42 +93,57 @@ jobs:
       - name: Assume Role and Deploy to Each Account
         if: env.DEPLOY_MODE == 'all-accounts'
         run: |
-          ACCOUNT_IDS=$(aws organizations list-accounts --query "Accounts[*].Id" --output json | jq -r '.[]')
+          # Step 1: Assume role in the management account
+          echo "Assuming role in the management account..."
+          MANAGEMENT_ACCOUNT_ID="992092700795"
+          MANAGEMENT_ROLE_ARN="arn:aws:iam::$MANAGEMENT_ACCOUNT_ID:role/${{ secrets.AWS_MANAGEMENT_ROLE_NAME }}"
+          MANAGEMENT_ROLE=$(aws sts assume-role --role-arn $MANAGEMENT_ROLE_ARN --role-session-name AssumeManagementRole)
 
-          # Step 2: Now assume roles in other accounts
-          for ACCOUNT_ID in $ACCOUNT_IDS; do
-          if [ "$ACCOUNT_ID" == "992092700795" ]; then
-            echo "Skipping management account: $ACCOUNT_ID"
-          continue
-          fi
+          # Extract temporary credentials for the management account
+          export AWS_ACCESS_KEY_ID=$(echo $MANAGEMENT_ROLE | jq -r '.Credentials.AccessKeyId')
+          export AWS_SECRET_ACCESS_KEY=$(echo $MANAGEMENT_ROLE | jq -r '.Credentials.SecretAccessKey')
+          export AWS_SESSION_TOKEN=$(echo $MANAGEMENT_ROLE | jq -r '.Credentials.SessionToken')
 
-          echo "Deploying IAM Role in Account: $ACCOUNT_ID"
-
-          # Assume role in the target account
-          TEMP_ROLE=$(aws sts assume-role --role-arn "arn:aws:iam::$ACCOUNT_ID:role/${{ secrets.AWS_DEPLOY_ROLE_NAME }}" --role-session-name CreateTerraformRole)
-
-          #Extract temporary credentials
-          export AWS_ACCESS_KEY_ID=$(echo $TEMP_ROLE | jq -r '.Credentials.AccessKeyId')
-          export AWS_SECRET_ACCESS_KEY=$(echo $TEMP_ROLE | jq -r '.Credentials.SecretAccessKey')
-          export AWS_SESSION_TOKEN=$(echo $TEMP_ROLE | jq -r '.Credentials.SessionToken')
-
-          # Verify access
+          # Verify access in the management account
           aws sts get-caller-identity
 
-          cd ${{ github.workspace }}
-          ls -l ${{ github.workspace }}
+          # Step 2: List all accounts in the organization
+          ACCOUNT_IDS=$(aws organizations list-accounts --query "Accounts[*].Id" --output json | jq -r '.[]')
 
-          # Run terraform plan for the account
-          terraform plan -var-file="${{ github.workspace }}/all-account.tfvars"
+          # Step 3: Assume AWSOrganizationRole to access other accounts
+          for ACCOUNT_ID in $ACCOUNT_IDS; do
+            if [ "$ACCOUNT_ID" == "$MANAGEMENT_ACCOUNT_ID" ]; then
+              echo "Skipping management account: $ACCOUNT_ID"
+              continue
+            fi
 
-          # Ensure that AWS credentials are still set before running terraform apply
-          echo "Running terraform apply for account $ACCOUNT_ID"
-              
-          # Run terraform apply for the account
-          terraform apply -var-file="${{ github.workspace }}/all-account.tfvars" -auto-approve
-              
+            echo "Deploying IAM Role in Account: $ACCOUNT_ID"
+
+            # Assume AWSOrganizationRole in the target account
+            ORG_ROLE_ARN="arn:aws:iam::$ACCOUNT_ID:role/${{ secrets.AWS_ORGANIZATION_ROLE_NAME }}"
+            ORG_ROLE=$(aws sts assume-role --role-arn $ORG_ROLE_ARN --role-session-name AssumeOrgRole)
+
+            # Extract temporary credentials for the target account
+            export AWS_ACCESS_KEY_ID=$(echo $ORG_ROLE | jq -r '.Credentials.AccessKeyId')
+            export AWS_SECRET_ACCESS_KEY=$(echo $ORG_ROLE | jq -r '.Credentials.SecretAccessKey')
+            export AWS_SESSION_TOKEN=$(echo $ORG_ROLE | jq -r '.Credentials.SessionToken')
+
+            # Verify access in the target account
+            aws sts get-caller-identity
+
+            # Step 4: Run Terraform plan and apply
+            cd ${{ github.workspace }}
+            ls -l ${{ github.workspace }}
+
+            # Run terraform plan for the account
+            terraform plan -var-file="${{ github.workspace }}/all-account.tfvars"
+
+            # Ensure that AWS credentials are still set before running terraform apply
+            echo "Running terraform apply for account $ACCOUNT_ID"
+
+            # Run terraform apply for the account
+            terraform apply -var-file="${{ github.workspace }}/all-account.tfvars" -auto-approve
           done
-          unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
         continue-on-error: true
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
