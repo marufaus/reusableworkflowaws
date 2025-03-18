@@ -135,7 +135,7 @@ jobs:
             echo "Running terraform apply for account $ACCOUNT_ID"
 
             # Run terraform apply for the account
-            terraform apply -var-file="${{ github.workspace }}/all-account.tfvars" -auto-approve
+            #terraform apply -var-file="${{ github.workspace }}/all-account.tfvars" -auto-approve
           done
         continue-on-error: true
         env:
