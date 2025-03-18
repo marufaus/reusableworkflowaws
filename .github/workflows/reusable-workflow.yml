@@ -105,9 +105,13 @@ jobs:
 
           # Step 3: Assume AWSOrganizationRole to access other accounts
           for ACCOUNT_ID in $ACCOUNT_IDS; do
-            if [ "$ACCOUNT_ID" == "992092700795" && "$ACCOUNT_ID" == "895684651924" ]; then
-              echo "Skipping management account: $ACCOUNT_ID"
-              continue
+            MANAGEMENT_ACCOUNT_ID="992092700795"
+            SKIP_ACCOUNT_ID="895684651924"  # Account to skip
+
+          # Skip the management account and the specific account
+            if [ "$ACCOUNT_ID" == "$MANAGEMENT_ACCOUNT_ID" ] || [ "$ACCOUNT_ID" == "$SKIP_ACCOUNT_ID" ]; then
+            echo "Skipping account: $ACCOUNT_ID"
+            continue
             fi
 
             echo "Deploying IAM Role in Account: $ACCOUNT_ID"
