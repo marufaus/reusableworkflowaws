@@ -125,7 +125,7 @@ jobs:
             echo "Running terraform apply for account $ACCOUNT_ID"
 
             # Run terraform apply for the account
-            #terraform apply -var-file="${{ github.workspace }}/all-account.tfvars" -auto-approve
+            terraform apply -var-file="${{ github.workspace }}/all-account.tfvars" -auto-approve
 
             #unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
           done
