@@ -97,9 +97,6 @@ jobs:
           echo "Verifying access to the management account..."
           aws sts get-caller-identity
 
-          # Verify access in the management account
-          aws sts get-caller-identity
-
           # Step 2: List all accounts in the organization
           ACCOUNT_IDS=$(aws organizations list-accounts --query "Accounts[*].Id" --output json | jq -r '.[]')
 
@@ -115,10 +112,7 @@ jobs:
 
             echo "Deploying IAM Role in Account: $ACCOUNT_ID"
 
-            eval $(aws sts assume-role --role-arn arn:aws:iam::${ACCOUNT_ID}:role/OrganizationAccountAccessRole --role-session-name AssumeOrgRole | jq -r '.Credentials | "export AWS_ACCESS_KEY_ID=\(.AccessKeyId)\nexport AWS_SECRET_ACCESS_KEY=\(.SecretAccessKey)\nexport AWS_SESSION_TOKEN=\(.SessionToken)\n"'
-
-            # Verify access in the target account
-            aws sts get-caller-identity
+            eval $(aws sts assume-role --role-arn arn:aws:iam::${ACCOUNT_ID}:role/OrganizationAccountAccessRole --role-session-name AssumeOrgRole | jq -r '.Credentials | "export AWS_ACCESS_KEY_ID=\(.AccessKeyId)\nexport AWS_SECRET_ACCESS_KEY=\(.SecretAccessKey)\nexport AWS_SESSION_TOKEN=\(.SessionToken)\n"')
 
             # Step 4: Run Terraform plan and apply
             cd ${{ github.workspace }}
@@ -133,7 +127,7 @@ jobs:
             # Run terraform apply for the account
             #terraform apply -var-file="${{ github.workspace }}/all-account.tfvars" -auto-approve
 
-            unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+             unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
           done
         continue-on-error: true
         env:
