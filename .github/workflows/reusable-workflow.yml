@@ -111,7 +111,7 @@ jobs:
             fi
 
             echo "Deploying IAM Role in Account: $ACCOUNT_ID"
-
+            ( #start of sub shell
             eval $(aws sts assume-role --role-arn arn:aws:iam::${ACCOUNT_ID}:role/OrganizationAccountAccessRole --role-session-name AssumeOrgRole | jq -r '.Credentials | "export AWS_ACCESS_KEY_ID=\(.AccessKeyId)\nexport AWS_SECRET_ACCESS_KEY=\(.SecretAccessKey)\nexport AWS_SESSION_TOKEN=\(.SessionToken)\n"')
             
             # Step 4: Run Terraform plan and apply
@@ -126,8 +126,9 @@ jobs:
 
             # Run terraform apply for the account
             terraform apply -var-file="${{ github.workspace }}/all-account.tfvars" -auto-approve
+            ) #end of sub shell
 
-            unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+            #unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
           done
         continue-on-error: true
         env:
